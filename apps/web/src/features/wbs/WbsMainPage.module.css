@@ -45,6 +45,28 @@
   flex: 1;
 }
 
+.divider {
+  display: inline-block;
+  width: 1px;
+  height: 24px;
+  background-color: var(--color-border-subtle);
+  margin: 0 var(--space-1);
+}
+
+.controlLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.switchRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
 .taskCount {
   color: var(--color-text-tertiary);
   font-size: var(--font-size-sm);
@@ -67,6 +89,9 @@
 .right {
   overflow: auto;
   background-color: var(--color-surface-sunken);
+}
+
+.right:has(> div[role='status']) {
   display: flex;
   align-items: center;
   justify-content: center;

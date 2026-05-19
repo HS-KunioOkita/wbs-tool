@@ -8,24 +8,32 @@ import { useProjectStore } from '../../store/project-store.js';
 import { pushErrorToast, useToastStore } from '../../store/toast-store.js';
 import { TaskEditDialog } from './TaskEditDialog.js';
 import { TaskTree } from './TaskTree.js';
+import { GanttChart } from './gantt/GanttChart.js';
+import type { Granularity } from './gantt/coordinates.js';
 import styles from './WbsMainPage.module.css';
 
 /**
- * UI-003 WBS メイン画面 — フェーズ 3 範囲では「ツールバー + 左ペイン（タスクツリー）+
- * 右ペイン（プレースホルダ）」の骨格まで実装する。SVG ガント / 依存線 /
- * ドラッグ&ドロップ / フィルタ / PDF は T-053〜T-063（フェーズ 4 以降）。
+ * UI-003 WBS メイン画面。
+ * - 左ペイン: タスクツリー（縦スクロール）
+ * - 右ペイン: ガントチャート（縦・横スクロール、ツリーと縦同期）
+ * - ツールバー: タスク CRUD + 表示粒度（日/月）+ 依存線 ON/OFF
+ *
+ * フィルタ・PDF エクスポートは次フェーズ（T-061〜063）。
  */
 export function WbsMainPage(): JSX.Element {
   const params = useParams();
   const projectId = Number.parseInt(params.projectId ?? '', 10);
   const navigate = useNavigate();
-  const { currentProject, tasks, isLoading, open, close, reloadTasks } = useProjectStore();
+  const { currentProject, tasks, dependencies, isLoading, open, close, reloadTasks } =
+    useProjectStore();
   const pushToast = useToastStore((s) => s.push);
 
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [editingTaskId, setEditingTaskId] = useState<number | null>(null);
   const [defaultParent, setDefaultParent] = useState<number | null>(null);
+  const [granularity, setGranularity] = useState<Granularity>('day');
+  const [showDependencies, setShowDependencies] = useState(true);
 
   useEffect(() => {
     if (Number.isNaN(projectId)) {
@@ -119,8 +127,42 @@ export function WbsMainPage(): JSX.Element {
         <Button variant="danger" disabled={!selected} onClick={() => void onDelete()}>
           削除
         </Button>
+
+        <span className={styles.divider} aria-hidden="true" />
+
+        <span className={styles.controlLabel}>表示粒度</span>
+        <div role="group" aria-label="表示粒度">
+          <Button
+            size="sm"
+            variant={granularity === 'day' ? 'primary' : 'secondary'}
+            onClick={() => setGranularity('day')}
+          >
+            日
+          </Button>
+          <Button
+            size="sm"
+            variant={granularity === 'month' ? 'primary' : 'secondary'}
+            onClick={() => setGranularity('month')}
+          >
+            月
+          </Button>
+        </div>
+
+        <span className={styles.divider} aria-hidden="true" />
+
+        <label className={styles.switchRow}>
+          <input
+            type="checkbox"
+            checked={showDependencies}
+            onChange={(e) => setShowDependencies(e.target.checked)}
+          />
+          依存線を表示
+        </label>
+
         <span className={styles.spacer} />
-        <span className={styles.taskCount}>表示中: {tasks.length} 件</span>
+        <span className={styles.taskCount}>
+          タスク {tasks.length} 件 / 依存関係 {dependencies.length} 件
+        </span>
       </div>
 
       <main className={styles.body}>
@@ -135,10 +177,19 @@ export function WbsMainPage(): JSX.Element {
           )}
         </div>
         <div className={styles.right} role="region" aria-label="ガントチャート">
-          <EmptyState
-            title="ガントチャートは次フェーズで実装します"
-            description="現在はタスクツリーのみ機能します（T-053〜063 の作業）。"
-          />
+          {tasks.length === 0 ? (
+            <EmptyState title="タスクが登録されるとガントチャートが表示されます" />
+          ) : (
+            <GanttChart
+              tasks={tasks}
+              dependencies={dependencies}
+              granularity={granularity}
+              showDependencies={showDependencies}
+              selectedTaskId={selectedTaskId}
+              onSelect={setSelectedTaskId}
+              onTaskUpdated={() => reloadTasks()}
+            />
+          )}
         </div>
       </main>
 
