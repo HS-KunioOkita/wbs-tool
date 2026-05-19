@@ -63,6 +63,7 @@ export function TaskTree({ tasks, selectedTaskId, onSelect }: Props): JSX.Elemen
           <div
             key={t.task_id}
             role="treeitem"
+            aria-label={t.name}
             aria-level={n.depth + 1}
             aria-expanded={hasChildren ? !collapsed.has(t.task_id) : undefined}
             aria-selected={isSelected}
