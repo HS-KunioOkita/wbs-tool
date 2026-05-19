@@ -1,0 +1,47 @@
+{
+  "name": "wbs-tool",
+  "version": "0.1.0",
+  "private": true,
+  "description": "WBS / ガントチャート管理ツール（ローカル Web アプリ）",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "dev": "npm run dev --workspace apps/server",
+    "dev:web": "npm run dev --workspace apps/web",
+    "start": "npm run start --workspace apps/server",
+    "test": "npm run test --workspaces --if-present",
+    "test:server": "npm run test --workspace apps/server",
+    "lint": "eslint . --max-warnings 0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:check": "npm run db:check --workspace apps/server",
+    "prepare": "husky || true"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.1.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "prettier --write",
+      "eslint --max-warnings 0"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.10.0"
+  }
+}

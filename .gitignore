@@ -1,0 +1,31 @@
+node_modules/
+dist/
+coverage/
+.vitest-cache/
+*.log
+*.tsbuildinfo
+
+# SQLite
+data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
+
+# Local env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Playwright
+playwright-report/
+test-results/
