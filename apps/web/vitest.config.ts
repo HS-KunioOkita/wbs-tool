@@ -7,8 +7,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   test: {
     globals: true,
-    environment: 'node',
-    include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
+    // jsdom: コンポーネントテストで DOM API を必要とする
+    // ユニットテストファイル単位で `// @vitest-environment node` を付けると上書き可
+    environment: 'jsdom',
+    include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx', 'src/**/*.test.ts', 'src/**/*.test.tsx'],
+    setupFiles: ['./tests/setup.ts'],
   },
   resolve: {
     alias: {
