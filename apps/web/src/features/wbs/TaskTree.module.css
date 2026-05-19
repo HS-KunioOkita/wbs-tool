@@ -1,0 +1,87 @@
+.tree {
+  display: flex;
+  flex-direction: column;
+  font-size: var(--font-size-sm);
+  background-color: var(--color-surface);
+  border-right: 1px solid var(--color-border-subtle);
+  height: 100%;
+  overflow: auto;
+}
+
+.headerRow,
+.row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1.4fr 0.6fr;
+  gap: var(--space-2);
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.headerRow {
+  position: sticky;
+  top: 0;
+  background-color: var(--color-neutral-100);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  z-index: 1;
+}
+
+.row {
+  cursor: pointer;
+}
+
+.row:hover {
+  background-color: var(--color-neutral-050);
+}
+
+.selected,
+.selected:hover {
+  background-color: rgba(37, 99, 235, 0.12);
+}
+
+.overdue .name {
+  color: var(--color-danger);
+}
+
+.completed .name {
+  color: var(--color-text-tertiary);
+  text-decoration: line-through;
+}
+
+.colName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.colAssignee {
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.colPeriod,
+.colProgress {
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  width: 16px;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.togglePlaceholder {
+  display: inline-block;
+  width: 16px;
+}
