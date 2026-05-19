@@ -1,6 +1,7 @@
 # Testing Standard
 
 ## Goal
+
 リリース可能品質を保証する。
 
 ---
@@ -8,6 +9,7 @@
 # Testing Strategy
 
 ## Unit Test
+
 単体テストでは以下を確認する。
 
 - 業務ルール
@@ -19,6 +21,7 @@
 - 権限
 
 ## E2E Test
+
 E2Eでは以下を確認する。
 
 - 主要業務フロー
@@ -44,6 +47,7 @@ E2Eでは以下を確認する。
 Coverage 数値のみを目的にしない。
 
 重視するもの：
+
 - リスク
 - 業務影響
 - リリース影響
@@ -53,6 +57,7 @@ Coverage 数値のみを目的にしない。
 # Required Test Cases
 
 ## Unit Test Required
+
 - 正常系
 - 異常系
 - 境界値
@@ -60,6 +65,7 @@ Coverage 数値のみを目的にしない。
 - 権限差分
 
 ## E2E Required
+
 - 初回利用
 - CRUD
 - 認証

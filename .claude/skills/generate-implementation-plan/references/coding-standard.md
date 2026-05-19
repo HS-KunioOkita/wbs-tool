@@ -1,6 +1,7 @@
 # Coding Standard
 
 ## Goal
+
 可読性・保守性・レビュー容易性を高める。
 
 ---
