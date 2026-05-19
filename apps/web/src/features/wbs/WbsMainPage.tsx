@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Button } from '../../components/Button.js';
 import { EmptyState } from '../../components/EmptyState.js';
@@ -6,26 +6,37 @@ import { Loading } from '../../components/Loading.js';
 import { ApiError, tasksApi } from '../../api/index.js';
 import { useProjectStore } from '../../store/project-store.js';
 import { pushErrorToast, useToastStore } from '../../store/toast-store.js';
+import { DependencyEditDialog } from './DependencyEditDialog.js';
 import { TaskEditDialog } from './TaskEditDialog.js';
 import { TaskTree } from './TaskTree.js';
 import { GanttChart } from './gantt/GanttChart.js';
 import type { Granularity } from './gantt/coordinates.js';
+import { FilterPanel } from './FilterPanel.js';
+import { PdfExportDialog } from './PdfExportDialog.js';
+import { applyFilter, emptyFilter, isFilterActive, type TaskFilter } from './filter.js';
 import styles from './WbsMainPage.module.css';
 
 /**
- * UI-003 WBS メイン画面。
- * - 左ペイン: タスクツリー（縦スクロール）
- * - 右ペイン: ガントチャート（縦・横スクロール、ツリーと縦同期）
- * - ツールバー: タスク CRUD + 表示粒度（日/月）+ 依存線 ON/OFF
- *
- * フィルタ・PDF エクスポートは次フェーズ（T-061〜063）。
+ * UI-003 WBS メイン画面（完全版）。
+ * - 左ペイン: タスクツリー
+ * - 右ペイン: ガントチャート
+ * - ツールバー: タスク CRUD / 粒度 / 依存線 ON-OFF / フィルタ / PDF
+ * - 依存関係編集ダイアログ / PDF エクスポート設定ダイアログ
  */
 export function WbsMainPage(): JSX.Element {
   const params = useParams();
   const projectId = Number.parseInt(params.projectId ?? '', 10);
   const navigate = useNavigate();
-  const { currentProject, tasks, dependencies, isLoading, open, close, reloadTasks } =
-    useProjectStore();
+  const {
+    currentProject,
+    tasks,
+    dependencies,
+    isLoading,
+    open,
+    close,
+    reloadTasks,
+    reloadDependencies,
+  } = useProjectStore();
   const pushToast = useToastStore((s) => s.push);
 
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
@@ -34,6 +45,12 @@ export function WbsMainPage(): JSX.Element {
   const [defaultParent, setDefaultParent] = useState<number | null>(null);
   const [granularity, setGranularity] = useState<Granularity>('day');
   const [showDependencies, setShowDependencies] = useState(true);
+  const [filter, setFilter] = useState<TaskFilter>(emptyFilter);
+  const [showFilter, setShowFilter] = useState(false);
+  const [showPdf, setShowPdf] = useState(false);
+  const [showDependencyEdit, setShowDependencyEdit] = useState(false);
+
+  const ganttContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (Number.isNaN(projectId)) {
@@ -51,8 +68,12 @@ export function WbsMainPage(): JSX.Element {
     return () => close();
   }, [projectId, open, close, navigate]);
 
+  const visibleTasks = useMemo(() => applyFilter(tasks, filter), [tasks, filter]);
+  const filterActive = isFilterActive(filter);
+
   const editing = editingTaskId !== null ? tasks.find((t) => t.task_id === editingTaskId) : null;
-  const selected = selectedTaskId !== null ? tasks.find((t) => t.task_id === selectedTaskId) : null;
+  const selected =
+    selectedTaskId !== null ? (tasks.find((t) => t.task_id === selectedTaskId) ?? null) : null;
 
   const onDelete = useCallback(async () => {
     if (!selected) return;
@@ -64,11 +85,16 @@ export function WbsMainPage(): JSX.Element {
         message: `タスクを削除しました（昇格 ${res.promoted_child_task_ids.length} 件 / 依存削除 ${res.deleted_dependency_ids.length} 件）`,
       });
       setSelectedTaskId(null);
-      await reloadTasks();
+      await Promise.all([reloadTasks(), reloadDependencies()]);
     } catch (err) {
       pushErrorToast(err);
     }
-  }, [selected, pushToast, reloadTasks]);
+  }, [selected, pushToast, reloadTasks, reloadDependencies]);
+
+  const getGanttSvg = useCallback(
+    (): SVGSVGElement | null => ganttContainerRef.current?.querySelector('svg') ?? null,
+    [],
+  );
 
   if (isLoading || !currentProject) {
     return (
@@ -127,10 +153,17 @@ export function WbsMainPage(): JSX.Element {
         <Button variant="danger" disabled={!selected} onClick={() => void onDelete()}>
           削除
         </Button>
+        <Button
+          variant="secondary"
+          disabled={!selected}
+          onClick={() => setShowDependencyEdit(true)}
+        >
+          依存関係
+        </Button>
 
         <span className={styles.divider} aria-hidden="true" />
 
-        <span className={styles.controlLabel}>表示粒度</span>
+        <span className={styles.controlLabel}>粒度</span>
         <div role="group" aria-label="表示粒度">
           <Button
             size="sm"
@@ -156,12 +189,29 @@ export function WbsMainPage(): JSX.Element {
             checked={showDependencies}
             onChange={(e) => setShowDependencies(e.target.checked)}
           />
-          依存線を表示
+          依存線
         </label>
+
+        <span className={styles.divider} aria-hidden="true" />
+
+        <Button
+          variant={filterActive ? 'primary' : 'secondary'}
+          onClick={() => setShowFilter(true)}
+        >
+          フィルタ{filterActive ? ' ●' : ''}
+        </Button>
+        <Button
+          variant="secondary"
+          onClick={() => setShowPdf(true)}
+          disabled={visibleTasks.length === 0}
+        >
+          PDF
+        </Button>
 
         <span className={styles.spacer} />
         <span className={styles.taskCount}>
-          タスク {tasks.length} 件 / 依存関係 {dependencies.length} 件
+          表示中 {visibleTasks.length} / {tasks.length} 件 / 依存 {dependencies.length} 件
+          {filterActive ? <span className={styles.filterBadge}>フィルタ適用中</span> : null}
         </span>
       </div>
 
@@ -172,16 +222,35 @@ export function WbsMainPage(): JSX.Element {
               title="タスクがまだありません"
               description="ツールバーの「＋ タスク追加」から最初のタスクを作成してください。"
             />
+          ) : visibleTasks.length === 0 ? (
+            <EmptyState
+              title="条件に合致するタスクがありません"
+              description="フィルタをクリアしてください。"
+              action={
+                <Button variant="secondary" onClick={() => setFilter(emptyFilter)}>
+                  フィルタをクリア
+                </Button>
+              }
+            />
           ) : (
-            <TaskTree tasks={tasks} selectedTaskId={selectedTaskId} onSelect={setSelectedTaskId} />
+            <TaskTree
+              tasks={visibleTasks}
+              selectedTaskId={selectedTaskId}
+              onSelect={setSelectedTaskId}
+            />
           )}
         </div>
-        <div className={styles.right} role="region" aria-label="ガントチャート">
-          {tasks.length === 0 ? (
-            <EmptyState title="タスクが登録されるとガントチャートが表示されます" />
+        <div
+          className={styles.right}
+          role="region"
+          aria-label="ガントチャート"
+          ref={ganttContainerRef}
+        >
+          {visibleTasks.length === 0 ? (
+            <EmptyState title="表示対象のタスクがありません" />
           ) : (
             <GanttChart
-              tasks={tasks}
+              tasks={visibleTasks}
               dependencies={dependencies}
               granularity={granularity}
               showDependencies={showDependencies}
@@ -201,6 +270,30 @@ export function WbsMainPage(): JSX.Element {
         allTasks={tasks}
         onClose={() => setShowEdit(false)}
         onSaved={() => reloadTasks()}
+      />
+      <DependencyEditDialog
+        open={showDependencyEdit && selected !== null}
+        projectId={projectId}
+        targetTask={selected}
+        allTasks={tasks}
+        dependencies={dependencies}
+        onClose={() => setShowDependencyEdit(false)}
+        onChanged={() => reloadDependencies()}
+      />
+      <FilterPanel
+        open={showFilter}
+        initial={filter}
+        allTasks={tasks}
+        onClose={() => setShowFilter(false)}
+        onApply={(f) => setFilter(f)}
+        onClear={() => setFilter(emptyFilter)}
+      />
+      <PdfExportDialog
+        open={showPdf}
+        projectName={currentProject.name}
+        tasks={visibleTasks}
+        getGanttSvg={getGanttSvg}
+        onClose={() => setShowPdf(false)}
       />
     </div>
   );

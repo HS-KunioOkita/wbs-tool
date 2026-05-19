@@ -72,6 +72,16 @@
   font-size: var(--font-size-sm);
 }
 
+.filterBadge {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-brand-primary);
+  color: var(--color-text-on-primary);
+  font-size: var(--font-size-sm);
+}
+
 .body {
   display: grid;
   grid-template-columns: minmax(380px, 30%) 1fr;
