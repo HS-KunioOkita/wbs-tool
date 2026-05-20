@@ -27,10 +27,10 @@ const BASE = '/api';
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const init: RequestInit = {
     method,
-    headers: { 'Content-Type': 'application/json' },
     credentials: 'omit',
   };
   if (body !== undefined) {
+    init.headers = { 'Content-Type': 'application/json' };
     init.body = JSON.stringify(body);
   }
   const res = await fetch(`${BASE}${path}`, init);

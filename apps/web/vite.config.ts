@@ -15,7 +15,8 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/api': 'http://localhost:5174',
+      // 既定は開発用 API（5174）。E2E は VITE_API_PORT でテスト用 API へ向ける。
+      '/api': `http://localhost:${process.env.VITE_API_PORT ?? '5174'}`,
     },
   },
 });

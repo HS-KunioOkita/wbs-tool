@@ -1,6 +1,7 @@
 import type { Page, APIRequestContext } from '@playwright/test';
 
-const API = 'http://127.0.0.1:5174';
+/** E2E 専用 API ポート（playwright.config.ts の E2E_API_PORT と一致させる）。 */
+export const API = 'http://127.0.0.1:5274';
 
 /**
  * E2E ヘルパ。API を直接叩いてシード作成、UI 経由の操作はテスト本体で。

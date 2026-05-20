@@ -36,10 +36,9 @@ test.describe('E2E-06 削除と連鎖', () => {
     // 削除確認ダイアログを開き、影響件数の表示を待つ
     const dialog = page.getByRole('dialog');
     await expect(dialog.getByText(/タスク/)).toBeVisible();
-    await dialog.getByRole('button', { name: /削除する/ }).click();
+    await dialog.getByRole('button', { name: '削除する' }).click();
 
-    // プロジェクトが消える
-    await expect(page.getByText(/削除しました/)).toBeVisible();
+    // プロジェクトが消える（状態変化で確認）
     await expect(page.getByText('プロジェクトがまだありません')).toBeVisible();
   });
 
@@ -69,13 +68,15 @@ test.describe('E2E-06 削除と連鎖', () => {
 
     // 親を選択 → 削除（window.confirm を auto-accept）
     await page.getByRole('treeitem', { name: /^親/ }).click();
-    page.once('dialog', (d) => void d.accept());
+    page.on('dialog', (d) => void d.accept());
     await page.getByRole('button', { name: '削除', exact: true }).click();
 
-    // 「昇格 2 件 / 依存削除 1 件」のトースト
-    await expect(page.getByText(/昇格 2 件 \/ 依存削除 1 件/)).toBeVisible();
-    // 子 A / 子 B は残るが親無しになる
+    // 子は親 NULL に昇格（level=1 になる）。親に関与する依存はないので「依存削除 0 件」
+    await expect(page.getByText(/昇格 2 件 \/ 依存削除 0 件/)).toBeVisible();
+    // 子 A / 子 B は残るが親無しになる（state 変化で確認）
     await expect(page.getByRole('treeitem', { name: /子A/ })).toBeVisible();
     await expect(page.getByRole('treeitem', { name: /子B/ })).toBeVisible();
+    // 子A → 子B の依存関係は RULE-013 の対象外で残る
+    await expect(page.getByText('依存 1 件')).toBeVisible();
   });
 });

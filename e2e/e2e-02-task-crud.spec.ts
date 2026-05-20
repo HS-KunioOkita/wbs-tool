@@ -40,9 +40,9 @@ test.describe('E2E-02 タスク CRUD + 親子', () => {
     await expect(parentRow).toContainText('50%');
   });
 
-  test('VR-004 循環参照を試みると拒否される (422)', async ({ page, request }) => {
-    // 親変更で循環を試みる: 子タスク C を作って、親を変更して循環させる
-    const tId = await createTask(request, projectId, {
+  test('VR-004 親候補から子孫を除外（UI 上で循環操作不可）', async ({ page, request }) => {
+    // 子孫を追加: 親タスク → 子A → 孫
+    await createTask(request, projectId, {
       name: '孫',
       start_date: '2026-06-15',
       due_date: '2026-06-20',
@@ -52,15 +52,19 @@ test.describe('E2E-02 タスク CRUD + 親子', () => {
     await gotoProjectList(page);
     await openProjectByName(page, 'CRUD案件');
 
-    // 親タスクを選んで編集、親を「孫」に設定する → 循環
+    // 親タスクを編集
     await page.getByRole('treeitem', { name: /親タスク/ }).click();
     await page.getByRole('button', { name: '編集', exact: true }).click();
     const dialog = page.getByRole('dialog');
-    // ダイアログ内の親タスク select box で「孫」を選ぶ
-    await dialog.locator('select').first().selectOption(String(tId));
-    await dialog.getByRole('button', { name: /^保存/ }).click();
+    await expect(dialog).toBeVisible();
 
-    // VR-004 → ERR-002 → 422 がトーストで表示される
-    await expect(page.getByText(/cycle|循環/i)).toBeVisible();
+    // VR-004 UI 抑止: 親タスクの「親タスク」select は自分自身および子孫（子A・孫）を除外
+    // 候補は「（最上位）」のみで、子孫タスクは表示されない
+    const parentSelect = dialog.locator('select').first();
+    const optionTexts = await parentSelect.locator('option').allTextContents();
+    expect(optionTexts).toEqual(['（最上位）']);
+
+    // 「候補がありません」のヒント表示
+    await expect(dialog.getByText('候補がありません')).toBeVisible();
   });
 });

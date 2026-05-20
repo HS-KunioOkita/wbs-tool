@@ -15,6 +15,49 @@ const PAGE_WIDTH = 297; // A4 横向き mm
 const PAGE_HEIGHT = 210;
 const MARGIN = 12;
 
+// jsPDF 組み込みフォント（Helvetica 等）は日本語グリフを持たず文字化けするため、
+// 日本語対応 TTF（Sawarabi Gothic / SIL OFL）を埋め込んで使用する。
+const FONT_URL = '/fonts/SawarabiGothic-Regular.ttf';
+const FONT_VFS = 'SawarabiGothic-Regular.ttf';
+const FONT_FAMILY = 'SawarabiGothic';
+
+let fontBase64Promise: Promise<string> | null = null;
+
+/** フォントを 1 回だけ取得して base64 をキャッシュする（メイン JS バンドルには含めない）。 */
+function loadFontBase64(): Promise<string> {
+  if (!fontBase64Promise) {
+    fontBase64Promise = fetch(FONT_URL)
+      .then((res) => {
+        if (!res.ok) throw new Error(`PDF 用フォントの読み込みに失敗しました (${res.status})`);
+        return res.arrayBuffer();
+      })
+      .then(arrayBufferToBase64)
+      .catch((err) => {
+        fontBase64Promise = null; // 失敗時は次回再試行できるようキャッシュを破棄
+        throw err;
+      });
+  }
+  return fontBase64Promise;
+}
+
+function arrayBufferToBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000; // String.fromCharCode のスタック上限を避けて分割変換
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/** 日本語フォントを doc に登録する。bold も同一 TTF を割り当て、svg2pdf の太字解決で times に落ちないようにする。 */
+async function registerJapaneseFont(doc: jsPDF): Promise<void> {
+  const base64 = await loadFontBase64();
+  doc.addFileToVFS(FONT_VFS, base64);
+  doc.addFont(FONT_VFS, FONT_FAMILY, 'normal');
+  doc.addFont(FONT_VFS, FONT_FAMILY, 'bold');
+}
+
 export async function exportPdf(input: {
   projectName: string;
   kind: ExportKind;
@@ -26,6 +69,8 @@ export async function exportPdf(input: {
   }
 
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  await registerJapaneseFont(doc);
+  doc.setFont(FONT_FAMILY, 'normal');
   let first = true;
 
   if (input.kind === 'list' || input.kind === 'both') {
@@ -63,7 +108,7 @@ function timestamp(): string {
 }
 
 function renderTaskListPage(doc: jsPDF, projectName: string, tasks: ReadonlyArray<TaskDto>): void {
-  doc.setFont('helvetica');
+  doc.setFont(FONT_FAMILY, 'normal');
   doc.setFontSize(14);
   doc.text(`${projectName} - タスク一覧`, MARGIN, MARGIN + 4);
 
@@ -107,12 +152,22 @@ async function renderGanttPage(doc: jsPDF, projectName: string, svg: SVGSVGEleme
   const scaleY = targetHeight / svgHeight;
   const scale = Math.min(scaleX, scaleY);
 
-  await svg2pdf(svg, doc, {
-    x: MARGIN,
-    y: MARGIN + 8,
-    width: svgWidth * scale,
-    height: svgHeight * scale,
-  });
+  // svg2pdf は SVG の font-family を jsPDF 登録フォントへ解決する。未指定だと times に
+  // フォールバックして日本語が文字化けするため、登録した日本語フォントを一時的に指定する。
+  // SawarabiGothic は未インストール環境ではブラウザ側で sans-serif に戻るため表示は不変。
+  const prevFontFamily = svg.getAttribute('font-family');
+  svg.setAttribute('font-family', FONT_FAMILY);
+  try {
+    await svg2pdf(svg, doc, {
+      x: MARGIN,
+      y: MARGIN + 8,
+      width: svgWidth * scale,
+      height: svgHeight * scale,
+    });
+  } finally {
+    if (prevFontFamily === null) svg.removeAttribute('font-family');
+    else svg.setAttribute('font-family', prevFontFamily);
+  }
 }
 
 function truncate(s: string, max: number): string {

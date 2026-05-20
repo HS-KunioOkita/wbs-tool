@@ -1,7 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { createDependency, createProject, deleteAllProjects } from './helpers.js';
-
-const API = 'http://127.0.0.1:5174';
+import { API, createDependency, createProject, deleteAllProjects } from './helpers.js';
 
 /**
  * E2E-08 NFR-001 性能実測（500 タスク × 1,000 依存関係）。
