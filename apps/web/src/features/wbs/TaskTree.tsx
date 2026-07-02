@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import type { Ref, UIEventHandler } from 'react';
 import type { TaskDto } from '@wbs-tool/shared';
 import { formatDate, isOverdue } from '../../utils/date.js';
 import styles from './TaskTree.module.css';
@@ -7,6 +8,9 @@ interface Props {
   tasks: readonly TaskDto[];
   selectedTaskId: number | null;
   onSelect: (taskId: number) => void;
+  /** スクロール同期用: スクロールコンテナ（ガントペインと縦位置を合わせる）。 */
+  scrollRef?: Ref<HTMLDivElement>;
+  onScroll?: UIEventHandler<HTMLDivElement>;
 }
 
 interface Node {
@@ -20,7 +24,13 @@ interface Node {
  * - 親子インデント、展開折りたたみ
  * - 期限超過行は色 + 「⚠」アイコン併用（A11Y-001）
  */
-export function TaskTree({ tasks, selectedTaskId, onSelect }: Props): JSX.Element {
+export function TaskTree({
+  tasks,
+  selectedTaskId,
+  onSelect,
+  scrollRef,
+  onScroll,
+}: Props): JSX.Element {
   const roots = useMemo(() => buildTree(tasks), [tasks]);
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
 
@@ -46,7 +56,7 @@ export function TaskTree({ tasks, selectedTaskId, onSelect }: Props): JSX.Elemen
   }, [roots, collapsed]);
 
   return (
-    <div className={styles.tree} role="tree">
+    <div className={styles.tree} role="tree" ref={scrollRef} onScroll={onScroll}>
       <div className={styles.headerRow} role="row">
         <span className={styles.colName}>タスク名</span>
         <span className={styles.colAssignee}>担当者</span>

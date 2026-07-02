@@ -148,26 +148,49 @@ async function renderGanttPage(doc: jsPDF, projectName: string, svg: SVGSVGEleme
   // svg2pdf は px → mm のスケールを内部で行う。viewBox から比率を決める。
   const svgWidth = Number(svg.getAttribute('width')) || svg.getBoundingClientRect().width;
   const svgHeight = Number(svg.getAttribute('height')) || svg.getBoundingClientRect().height;
-  const scaleX = targetWidth / svgWidth;
-  const scaleY = targetHeight / svgHeight;
-  const scale = Math.min(scaleX, scaleY);
+  const scale = Math.min(targetWidth / svgWidth, targetHeight / svgHeight);
 
-  // svg2pdf は SVG の font-family を jsPDF 登録フォントへ解決する。未指定だと times に
-  // フォールバックして日本語が文字化けするため、登録した日本語フォントを一時的に指定する。
-  // SawarabiGothic は未インストール環境ではブラウザ側で sans-serif に戻るため表示は不変。
-  const prevFontFamily = svg.getAttribute('font-family');
-  svg.setAttribute('font-family', FONT_FAMILY);
+  const exportSvg = prepareGanttSvgForExport(svg);
   try {
-    await svg2pdf(svg, doc, {
+    await svg2pdf(exportSvg.svg, doc, {
       x: MARGIN,
       y: MARGIN + 8,
       width: svgWidth * scale,
       height: svgHeight * scale,
     });
   } finally {
-    if (prevFontFamily === null) svg.removeAttribute('font-family');
-    else svg.setAttribute('font-family', prevFontFamily);
+    exportSvg.cleanup();
   }
+}
+
+/**
+ * ガント SVG をエクスポート用に複製し、CSS カスタムプロパティを解決した具体値へ変換する。
+ * svg2pdf は getComputedStyle を使わず属性を生のまま読むため、`fill="var(--*)"` のままだと
+ * 色を解釈できずガントが真っ白になる。複製を画面外に実体化し、計算済みの色とフォントを
+ * 属性へ書き戻してから渡す。cleanup() で一時 DOM を破棄する。
+ */
+function prepareGanttSvgForExport(source: SVGSVGElement): {
+  svg: SVGSVGElement;
+  cleanup: () => void;
+} {
+  const clone = source.cloneNode(true) as SVGSVGElement;
+  // svg2pdf は font-family を jsPDF 登録フォントへ解決する。日本語フォントを明示する。
+  clone.setAttribute('font-family', FONT_FAMILY);
+
+  // getComputedStyle / getBBox が機能するよう、画面外に実体を配置する。
+  const host = document.createElement('div');
+  host.setAttribute('aria-hidden', 'true');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;pointer-events:none;';
+  host.appendChild(clone);
+  document.body.appendChild(host);
+
+  for (const el of [clone, ...clone.querySelectorAll<SVGElement>('*')]) {
+    const cs = getComputedStyle(el);
+    if (cs.fill) el.setAttribute('fill', cs.fill);
+    if (cs.stroke) el.setAttribute('stroke', cs.stroke);
+  }
+
+  return { svg: clone, cleanup: () => host.remove() };
 }
 
 function truncate(s: string, max: number): string {

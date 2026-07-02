@@ -51,6 +51,23 @@ export function WbsMainPage(): JSX.Element {
   const [showDependencyEdit, setShowDependencyEdit] = useState(false);
 
   const ganttContainerRef = useRef<HTMLDivElement>(null);
+  const treeScrollRef = useRef<HTMLDivElement>(null);
+  const scrollSyncLock = useRef(false);
+
+  // 左ペイン（タスクツリー）と右ペイン（ガント）の縦スクロールを同期し、行とバーの
+  // 縦位置を常に一致させる。両者は行高さを揃えてあるため scrollTop の一致で整列する。
+  const syncScroll = useCallback((source: 'tree' | 'gantt') => {
+    if (scrollSyncLock.current) return;
+    const tree = treeScrollRef.current;
+    const gantt = ganttContainerRef.current;
+    if (!tree || !gantt) return;
+    scrollSyncLock.current = true;
+    if (source === 'tree') gantt.scrollTop = tree.scrollTop;
+    else tree.scrollTop = gantt.scrollTop;
+    requestAnimationFrame(() => {
+      scrollSyncLock.current = false;
+    });
+  }, []);
 
   useEffect(() => {
     if (Number.isNaN(projectId)) {
@@ -237,6 +254,8 @@ export function WbsMainPage(): JSX.Element {
               tasks={visibleTasks}
               selectedTaskId={selectedTaskId}
               onSelect={setSelectedTaskId}
+              scrollRef={treeScrollRef}
+              onScroll={() => syncScroll('tree')}
             />
           )}
         </div>
@@ -245,6 +264,7 @@ export function WbsMainPage(): JSX.Element {
           role="region"
           aria-label="ガントチャート"
           ref={ganttContainerRef}
+          onScroll={() => syncScroll('gantt')}
         >
           {visibleTasks.length === 0 ? (
             <EmptyState title="表示対象のタスクがありません" />
