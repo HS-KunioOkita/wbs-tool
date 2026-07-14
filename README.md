@@ -14,7 +14,7 @@ monorepo（npm workspaces）
 
 ## 必要環境
 
-- Node.js 20.10 以上
+- Node.js 20.19 以上（22 系は 22.12 以上）
 - npm 10 以上
 - macOS（最新および 1 つ前のメジャー）/ Chrome 最新版（推奨）
 
