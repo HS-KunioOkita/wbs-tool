@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 /**
  * T-011 構成管理。
@@ -7,6 +8,8 @@ import path from 'node:path';
  * - PORT / FALLBACK_PORT: ローカルサーバの待ち受けポート。占有時はフォールバックへ。
  * - DB_PATH: SQLite ファイルパス。既定は ./data/wbs.sqlite。
  * - LOG_PATH: ログファイルパス。空文字なら標準出力のみ。
+ * - SERVE_STATIC: true のとき Fastify がビルド済み SPA（apps/web/dist）を同一オリジンで配信する。
+ * - WEB_DIST_PATH: 配信する SPA の dist パス。既定は apps/web/dist を相対解決する。
  */
 export interface AppConfig {
   readonly port: number;
@@ -15,7 +18,13 @@ export interface AppConfig {
   readonly dbPath: string;
   readonly logPath: string | undefined;
   readonly logLevel: 'INFO' | 'WARN' | 'ERROR';
+  readonly serveStatic: boolean;
+  readonly webDistPath: string;
 }
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// apps/server/src/config → apps/web/dist
+const DEFAULT_WEB_DIST = path.resolve(__dirname, '../../../web/dist');
 
 function readEnvInt(name: string, fallback: number): number {
   const raw = process.env[name];
@@ -44,5 +53,7 @@ export function loadConfig(): AppConfig {
     dbPath: path.resolve(readEnvString('DB_PATH', './data/wbs.sqlite')),
     logPath: logPathRaw ? path.resolve(logPathRaw) : undefined,
     logLevel,
+    serveStatic: process.env.SERVE_STATIC === 'true',
+    webDistPath: path.resolve(readEnvString('WEB_DIST_PATH', DEFAULT_WEB_DIST)),
   };
 }

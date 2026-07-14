@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import Fastify, { type FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
+import fastifyStatic from '@fastify/static';
 import type { Database as Db } from 'better-sqlite3';
 import { NotFoundError } from '../errors/app-errors.js';
 import type { Logger } from '../logging/logger.js';
@@ -12,6 +13,10 @@ import { registerDependencyRoutes } from './routes/dependencies.js';
 export interface BuildServerOptions {
   logger: Logger;
   db: Db;
+  /** true のとき、ビルド済み SPA（webDistPath）を同一オリジンで配信する（常駐運用向け）。 */
+  serveStatic?: boolean;
+  /** 配信する SPA の dist パス。serveStatic が true のときのみ参照される。 */
+  webDistPath?: string;
 }
 
 /**
@@ -46,13 +51,27 @@ export async function buildServer(options: BuildServerOptions): Promise<FastifyI
     credentials: false,
   });
 
+  // 常駐運用: ビルド済み SPA を同一オリジンで配信する（SERVE_STATIC=true のときのみ）。
+  // wildcard:false により、実在する静的ファイルのみ直接配信し、それ以外は notFound へ委譲する。
+  const serveStatic = options.serveStatic === true && options.webDistPath !== undefined;
+  if (serveStatic) {
+    await app.register(fastifyStatic, {
+      root: options.webDistPath as string,
+      wildcard: false,
+    });
+  }
+
   app.addHook('onRequest', async (req, reply) => {
     void reply.header('x-correlation-id', req.id);
   });
 
   app.setErrorHandler(createErrorHandler(options.logger));
 
-  app.setNotFoundHandler((req) => {
+  app.setNotFoundHandler((req, reply) => {
+    // SPA 配信時は、API 以外の GET をクライアントルーティング用に index.html へフォールバックする。
+    if (serveStatic && req.method === 'GET' && !req.url.startsWith('/api')) {
+      return reply.sendFile('index.html');
+    }
     throw new NotFoundError(`route not found: ${req.method} ${req.url}`);
   });
 

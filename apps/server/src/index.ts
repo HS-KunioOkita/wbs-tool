@@ -23,7 +23,12 @@ async function main(): Promise<void> {
     logger.info('applied migrations', { versions: migrationResult.appliedVersions });
   }
 
-  const server = await buildServer({ logger, db: db.raw });
+  const server = await buildServer({
+    logger,
+    db: db.raw,
+    serveStatic: config.serveStatic,
+    webDistPath: config.webDistPath,
+  });
 
   // ポート占有時のフォールバック（T-064 に対応する最小実装）
   const tryListen = async (port: number): Promise<number> => {

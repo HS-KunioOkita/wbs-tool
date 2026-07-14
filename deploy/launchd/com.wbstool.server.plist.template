@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  wbs-tool を macOS launchd の常駐サービスとして起動するための LaunchAgent テンプレート。
+  __NODE_BIN__ / __REPO_ROOT__ / __LOG_DIR__ / __PORT__ / __DB_PATH__ / __WEB_DIST__ は
+  deploy/launchd/install.sh が実際の値へ置換する。
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.wbstool.server</string>
+
+  <!--
+    サーバは ESM + moduleResolution:Bundler で、workspace パッケージ @wbs-tool/shared の
+    main/exports が .ts を指すため、素の node（node dist/index.js）では解決できない。
+    dev と同じく tsx ローダ経由で TypeScript を直接実行する。
+    'tsx' は WorkingDirectory=apps/server の node_modules から解決される
+    （apps/server の dependencies に含めてある）。
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__NODE_BIN__</string>
+    <string>--import</string>
+    <string>tsx</string>
+    <string>__REPO_ROOT__/apps/server/src/index.ts</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__/apps/server</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>NODE_ENV</key>
+    <string>production</string>
+    <!-- Fastify が apps/web/dist を同一オリジンで配信する -->
+    <key>SERVE_STATIC</key>
+    <string>true</string>
+    <key>PORT</key>
+    <string>__PORT__</string>
+    <!-- ローカル常駐のため 127.0.0.1 に限定 -->
+    <key>HOST</key>
+    <string>127.0.0.1</string>
+    <key>LOG_LEVEL</key>
+    <string>info</string>
+    <!-- 可変データ（SQLite）はリポジトリ外（既定 ~/.wbs-tool）に絶対パスで保存 -->
+    <key>DB_PATH</key>
+    <string>__DB_PATH__</string>
+    <!-- 配信する SPA の dist を絶対パスで固定（相対解決に依存しない） -->
+    <key>WEB_DIST_PATH</key>
+    <string>__WEB_DIST__</string>
+  </dict>
+
+  <!-- ログイン時に起動し、落ちたら自動再起動する -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__LOG_DIR__/wbs-tool.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__LOG_DIR__/wbs-tool.err.log</string>
+
+  <key>ProcessType</key>
+  <string>Background</string>
+</dict>
+</plist>
