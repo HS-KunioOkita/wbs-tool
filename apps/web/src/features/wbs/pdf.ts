@@ -82,7 +82,6 @@ export async function exportPdf(input: {
   if ((input.kind === 'gantt' || input.kind === 'both') && input.ganttSvg) {
     if (!first) doc.addPage();
     await renderGanttPage(doc, input.projectName, input.ganttSvg);
-    first = false;
   }
 
   const filename = makeFilename(input.projectName, input.kind);

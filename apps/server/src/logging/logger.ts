@@ -48,7 +48,6 @@ export function createLogger(options: LoggerOptions = {}): Logger {
 
     // 標準出力
     if (level === 'ERROR') {
-      // eslint-disable-next-line no-console
       console.error(line);
     } else if (level === 'WARN') {
       console.warn(line);
