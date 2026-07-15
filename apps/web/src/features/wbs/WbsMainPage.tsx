@@ -312,6 +312,8 @@ export function WbsMainPage(): JSX.Element {
         open={showPdf}
         projectName={currentProject.name}
         tasks={visibleTasks}
+        dependencies={dependencies}
+        showDependencies={showDependencies}
         getGanttSvg={getGanttSvg}
         onClose={() => setShowPdf(false)}
       />

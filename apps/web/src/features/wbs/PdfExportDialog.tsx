@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { TaskDto } from '@wbs-tool/shared';
+import type { DependencyDto, TaskDto } from '@wbs-tool/shared';
 import { Button } from '../../components/Button.js';
 import { Modal } from '../../components/Modal.js';
 import { pushErrorToast, useToastStore } from '../../store/toast-store.js';
@@ -10,6 +10,10 @@ interface Props {
   open: boolean;
   projectName: string;
   tasks: ReadonlyArray<TaskDto>;
+  /** 「両方」出力時の依存線描画に使用する（表示中の依存関係）。 */
+  dependencies: ReadonlyArray<DependencyDto>;
+  /** UI-003 の依存線表示トグルの状態。 */
+  showDependencies: boolean;
   /** ガント SVG の参照取得関数。UI-003 が描画中なら要素を返し、非表示なら null。 */
   getGanttSvg: () => SVGSVGElement | null;
   onClose: () => void;
@@ -24,6 +28,8 @@ export function PdfExportDialog({
   open,
   projectName,
   tasks,
+  dependencies,
+  showDependencies,
   getGanttSvg,
   onClose,
 }: Props): JSX.Element | null {
@@ -43,7 +49,10 @@ export function PdfExportDialog({
         projectName,
         kind,
         tasks,
-        ganttSvg: kind === 'list' ? null : getGanttSvg(),
+        dependencies,
+        showDependencies,
+        // 「両方」は SVG を使わず jsPDF が直接描画するため、SVG が必要なのは「ガントチャートのみ」だけ
+        ganttSvg: kind === 'gantt' ? getGanttSvg() : null,
       });
       pushToast({ kind: 'success', message: `PDF を出力しました: ${filename}` });
       onClose();
@@ -76,7 +85,9 @@ export function PdfExportDialog({
     >
       <div className={styles.layout}>
         <p className={styles.description}>
-          現在のフィルタ・粒度・依存線表示の状態がそのまま PDF に反映されます。
+          現在のフィルタ・粒度・依存線表示の状態がそのまま PDF
+          に反映されます。「両方」はタスク一覧とガントチャートを横並びの 1
+          ページに収めて出力します（時間軸は期間に合わせて自動調整）。
         </p>
 
         <fieldset className={styles.fieldset}>
